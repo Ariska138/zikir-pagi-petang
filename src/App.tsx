@@ -4,6 +4,7 @@ import Introduction from './components/Introduction';
 import ZikirCard from './components/ZikirCard';
 import ConsistencyTracker from './components/ConsistencyTracker';
 import MemorizationTechnique from './components/MemorizationTechnique';
+import Footer from './components/Footer';
 import { zikirData } from './data/zikir';
 import { Sparkles, Moon, Sun } from 'lucide-react';
 
@@ -72,18 +73,7 @@ export default function App() {
             ))}
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            className="text-center pt-24 border-t border-surface-border"
-          >
-            <p className="text-sm text-brand-earth/60 font-serif italic mb-4">
-              "Dan sebutlah (nama) Tuhanmu dalam hatimu dengan rendah hati dan rasa takut..." (QS. Al-A'raf: 205)
-            </p>
-            <div className="text-[10px] uppercase tracking-widest font-bold text-muted">
-              © 2026 Tadabbur Zikir • Menata Niat Menggapai Berkah
-            </div>
-          </motion.div>
+          <Footer />
         </div>
       </main>
     </div>
