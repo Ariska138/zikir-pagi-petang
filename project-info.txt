@@ -1,0 +1,873 @@
+=== Project Structure ===
+📄 index.html
+📄 metadata.json
+📄 package.json
+📁 src/
+  📄 App.tsx
+  📁 components/
+    📄 ConsistencyTracker.tsx
+    📄 Footer.tsx
+    📄 Introduction.tsx
+    📄 MemorizationTechnique.tsx
+    📄 ZikirCard.tsx
+  📁 data/
+    📄 zikir.ts
+  📄 index.css
+  📄 main.tsx
+📄 tsconfig.json
+📄 vite.config.ts
+
+=== File Contents ===
+
+=== File: index.html ===
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
+
+=== File: metadata.json ===
+{
+  "name": "Tadabbur Zikir Pagi & Petang",
+  "description": "Aplikasi untuk memahami, merenungkan (tadabbur), dan menghafalkan zikir pagi dan petang dengan bantuan kata per kata.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
+
+
+=== File: package.json ===
+{
+  "name": "react-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^6.2.0",
+    "express": "^4.21.2",
+    "dotenv": "^17.2.3",
+    "motion": "^12.23.24"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "autoprefixer": "^10.4.21",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "@types/express": "^4.17.21"
+  }
+}
+
+
+=== File: tsconfig.json ===
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
+}
+
+
+=== File: vite.config.ts ===
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import {defineConfig, loadEnv} from 'vite';
+
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, '.', '');
+  return {
+    plugins: [react(), tailwindcss()],
+    define: {
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    server: {
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      hmr: process.env.DISABLE_HMR !== 'true',
+    },
+  };
+});
+
+
+=== File: src/App.tsx ===
+import { useState } from 'react';
+import { motion } from 'motion/react';
+import Introduction from './components/Introduction';
+import ZikirCard from './components/ZikirCard';
+import ConsistencyTracker from './components/ConsistencyTracker';
+import MemorizationTechnique from './components/MemorizationTechnique';
+import Footer from './components/Footer';
+import { zikirData } from './data/zikir';
+import { Sparkles, Moon, Sun } from 'lucide-react';
+
+export default function App() {
+  const [timeOfDay, setTimeOfDay] = useState<'pagi' | 'petang'>('pagi');
+  const [isDark, setIsDark] = useState(false);
+
+  return (
+    <div className={`${isDark ? 'dark' : ''}`}>
+      <div className="min-h-screen bg-brand-cream selection:bg-brand-gold selection:text-white">
+        {/* Navigation / Time Switch */}
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-nav-bg backdrop-blur-md border-b border-surface-border">
+          <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-brand-earth">
+              <Sparkles size={20} className="text-brand-gold" />
+              <span className="font-serif font-bold tracking-tight">Tadabbur Zikir</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setIsDark(!isDark)}
+                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-brand-earth transition-colors"
+                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {isDark ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+
+              <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-full border border-surface-border">
+                <button
+                  onClick={() => setTimeOfDay('pagi')}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${timeOfDay === 'pagi' ? 'bg-white dark:bg-slate-800 text-brand-earth shadow-sm' : 'text-muted hover:text-brand-earth'}`}
+                >
+                  <Sun size={14} />
+                  PAGI
+                </button>
+                <button
+                  onClick={() => setTimeOfDay('petang')}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${timeOfDay === 'petang' ? 'bg-white dark:bg-slate-800 text-brand-earth shadow-sm' : 'text-muted hover:text-brand-earth'}`}
+                >
+                  <Moon size={14} />
+                  PETANG
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <main className="pt-16">
+          <Introduction />
+
+          <div className="max-w-5xl mx-auto px-6 pb-24 space-y-12">
+            <ConsistencyTracker />
+            <MemorizationTechnique />
+            
+            <div className="text-center space-y-2 mb-16 pt-16 border-t border-surface-border">
+              <h2 className="text-3xl font-serif text-brand-earth">Himpunan Zikir</h2>
+            <p className="text-muted max-w-lg mx-auto">
+              Setiap lafaz adalah bentuk ketundukan. Setiap makna adalah pengakuan akan kebesaran-Nya.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-12">
+            {zikirData.map((zikir, index) => (
+              <ZikirCard key={index} zikir={zikir} index={index} />
+            ))}
+          </div>
+
+          <Footer />
+        </div>
+      </main>
+    </div>
+    </div>
+  );
+}
+
+
+=== File: src/index.css ===
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+
+  --color-brand-cream: var(--bg-primary);
+  --color-brand-earth: var(--text-brand);
+  --color-brand-sage: var(--accent-secondary);
+  --color-brand-gold: var(--accent-primary);
+  --color-surface: var(--card-bg);
+  --color-surface-border: var(--card-border);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-nav-bg: var(--nav-bg);
+}
+
+:root {
+  --bg-primary: #fdfaf6;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-brand: #5a5a40;
+  --accent-primary: #c5a059;
+  --accent-secondary: #8a9a5b;
+  --card-bg: #ffffff;
+  --card-border: rgba(90, 90, 64, 0.1);
+  --nav-bg: rgba(253, 250, 246, 0.8);
+}
+
+.dark {
+  --bg-primary: #0A0B0E;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-brand: #f59e0b; /* Amber 500 */
+  --accent-primary: #fbbf24; /* Amber 400 */
+  --accent-secondary: #d97706; /* Amber 600 */
+  --card-bg: #111318;
+  --card-border: rgba(30, 41, 59, 0.5);
+  --nav-bg: rgba(10, 11, 14, 0.8);
+}
+
+@layer base {
+  body {
+    @apply bg-brand-cream text-main font-sans antialiased transition-colors duration-500;
+  }
+
+  .arabic-text {
+    @apply font-serif;
+    direction: rtl;
+  }
+}
+
+
+
+=== File: src/main.tsx ===
+import {StrictMode} from 'react';
+import {createRoot} from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+
+
+=== File: src/components/ConsistencyTracker.tsx ===
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Calendar, CheckCircle2, TrendingUp, Award, PlusCircle } from 'lucide-react';
+
+export default function ConsistencyTracker() {
+  const [streak, setStreak] = useState<number[]>([]);
+  const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedStreak = localStorage.getItem('zikir-streak');
+    const savedLastDate = localStorage.getItem('zikir-last-date');
+    if (savedStreak) setStreak(JSON.parse(savedStreak));
+    if (savedLastDate) setLastCheckIn(savedLastDate);
+  }, []);
+
+  const handleCheckIn = () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (lastCheckIn === today) return;
+
+    const newStreak = [...streak, 1].slice(-7); // Track last 7 entries
+    setStreak(newStreak);
+    setLastCheckIn(today);
+    localStorage.setItem('zikir-streak', JSON.stringify(newStreak));
+    localStorage.setItem('zikir-last-date', today);
+  };
+
+  const isComplete = streak.length >= 7;
+
+  return (
+    <section className="bg-surface rounded-3xl border border-surface-border p-8 shadow-sm overflow-hidden relative">
+      <div className="absolute top-0 right-0 p-8 opacity-5">
+        <TrendingUp size={120} />
+      </div>
+
+      <div className="relative z-10 space-y-6">
+        <div className="flex items-center gap-3">
+          <Calendar className="text-brand-gold" size={24} />
+          <h3 className="font-serif text-2xl text-brand-earth uppercase tracking-tight">Tracker Istiqomah</h3>
+        </div>
+
+        <p className="text-muted text-sm leading-relaxed max-w-lg">
+          Pejuang ilmu dan rupiah butuh nafas panjang. Jangan terbebani banyak sekaligus. Fokus selesaikan satu-satu setiap pagi. Jika konsisten 7 hari, tambahkan zikir berikutnya.
+        </p>
+
+        <div className="flex gap-2 py-4">
+          {[...Array(7)].map((_, i) => (
+            <div
+              key={i}
+              className={`flex-1 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-500 ${
+                i < streak.length
+                  ? 'bg-brand-sage border-brand-sage text-white'
+                  : 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30'
+              }`}
+            >
+              <CheckCircle2 size={20} className={i < streak.length ? 'scale-110' : 'scale-90'} />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <button
+            onClick={handleCheckIn}
+            disabled={lastCheckIn === new Date().toISOString().split('T')[0]}
+            className={`w-full md:w-auto px-8 py-3 rounded-full font-bold text-sm transition-all shadow-md ${
+              lastCheckIn === new Date().toISOString().split('T')[0]
+                ? 'bg-muted/10 text-muted cursor-not-allowed'
+                : 'bg-brand-gold text-white hover:bg-brand-gold/90 active:scale-95'
+            }`}
+          >
+            {lastCheckIn === new Date().toISOString().split('T')[0] ? 'Zikir Hari Ini Selesai' : 'Lapor Selesai Hari Ini'}
+          </button>
+
+          <AnimatePresence>
+            {isComplete && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3 text-brand-sage bg-brand-sage/10 px-6 py-3 rounded-full border border-brand-sage/20"
+              >
+                <Award size={18} />
+                <span className="text-xs font-bold uppercase tracking-wider">Hafalan Mantap! Tambahkan 1 Zikir Baru?</span>
+                <PlusCircle size={18} className="cursor-pointer hover:rotate-90 transition-transform" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+=== File: src/components/Footer.tsx ===
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, BookOpen, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const dalils = [
+  {
+    surah: "Ar-Ra'd: 28",
+    content: "(Yaitu) orang-orang yang beriman dan hati mereka menjadi tenteram dengan mengingat Allah. Ingatlah, hanya dengan mengingat Allah-lah hati menjadi tenteram.",
+    context: "Janji Allah bagi hamba-Nya yang istiqomah berzikir: ketenangan yang tak bisa dibeli dengan rupiah."
+  },
+  {
+    surah: "Ali 'Imran: 41",
+    content: "...Dan sebutlah (nama) Tuhanmu sebanyak-banyaknya serta bertasbihlah memuji-Nya pada waktu petang dan pagi hari.",
+    context: "Perintah Allah kepada Nabi Zakaria AS sebagai wujud syukur dan penghambaan di setiap pergantian waktu."
+  },
+  {
+    surah: "Al-Ahzab: 41-42",
+    content: "Wahai orang-orang yang beriman! Berzikirlah (dengan menyebut nama) Allah, zikir yang sebanyak-banyaknya. Dan bertasbihlah kepada-Nya pada waktu pagi dan petang.",
+    context: "Seruan kasih sayang Allah agar hamba-Nya senantiasa terhubung dengan Sumber Kekuatan."
+  }
+];
+
+export default function Footer() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % dalils.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + dalils.length) % dalils.length);
+  };
+
+  return (
+    <footer className="mt-24 pt-16 pb-12 border-t border-surface-border">
+      <div className="max-w-5xl mx-auto px-6 space-y-16">
+        {/* Dalil Carousel Section */}
+        <div className="relative bg-black/[0.02] dark:bg-white/[0.02] rounded-3xl border border-surface-border p-8 md:p-12 overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Quote size={120} />
+          </div>
+
+          <div className="relative z-10 min-h-[180px] flex flex-col justify-center items-center text-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-6 max-w-3xl"
+              >
+                <div className="flex items-center justify-center gap-2 text-brand-gold">
+                  <Quote size={16} />
+                  <span className="text-xs font-bold uppercase tracking-widest leading-none">{dalils[currentIndex].surah}</span>
+                </div>
+                
+                <p className="text-main font-serif italic text-xl md:text-2xl leading-relaxed">
+                  "{dalils[currentIndex].content}"
+                </p>
+                
+                <p className="text-sm text-muted leading-relaxed max-w-xl mx-auto">
+                  {dalils[currentIndex].context}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Carousel Controls */}
+          <div className="mt-10 flex items-center justify-center gap-6">
+            <button
+              onClick={prevSlide}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-muted hover:text-brand-gold transition-all"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            
+            <div className="flex gap-2">
+              {dalils.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                    i === currentIndex ? 'bg-brand-gold w-6' : 'bg-muted/20'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={nextSlide}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-muted hover:text-brand-gold transition-all"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </div>
+
+        {/* Closing Quote */}
+        <div className="text-center space-y-6 pt-16 border-t border-surface-border/50">
+          <div className="flex justify-center">
+            <Heart className="text-brand-gold fill-brand-gold/10" size={32} />
+          </div>
+          <div className="max-w-2xl mx-auto space-y-4">
+            <h3 className="text-2xl font-serif text-brand-earth">Zikir: Nafasnya Jiwa Pejuang</h3>
+            <p className="text-muted leading-relaxed italic">
+              "Jika engkau merasa lelah mengejar dunia, berhentilah sejenak. Kembalilah kepada Pemiliknya. Zikir pagi dan petang adalah caramu memberitahu dirimu sendiri bahwa engkau sedang menggenggam tangan Ar-Rahman dalam setiap langkah mencari nafkah dan ilmu."
+            </p>
+          </div>
+        </div>
+
+        {/* Technical Footer */}
+        <div className="flex flex-col md:flex-row justify-between items-center pt-8 text-[10px] uppercase tracking-widest font-bold text-muted/50 border-t border-surface-border/30">
+          <span>© 2026 Tadabbur Zikir • Berkah Umurnya, Terjaga Hatinya</span>
+          <div className="flex gap-4 mt-4 md:mt-0">
+            <span className="flex items-center gap-1 hover:text-brand-gold cursor-pointer transition-colors">
+              <BookOpen size={10} />
+              Sumber Shahih
+            </span>
+            <span>Istiqomah adalah Kunci</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+
+=== File: src/components/Introduction.tsx ===
+import { motion } from 'framer-motion';
+import { Quote } from 'lucide-react';
+
+export default function Introduction() {
+  return (
+    <section className="max-w-4xl mx-auto px-6 py-16 md:py-24">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+        className="text-center space-y-8"
+      >
+        <div className="flex justify-center">
+          <div className="w-12 h-12 rounded-full border border-brand-earth/20 flex items-center justify-center text-brand-earth">
+            <Quote size={20} />
+          </div>
+        </div>
+
+        <h1 className="text-4xl md:text-6xl font-serif font-light text-brand-earth leading-tight">
+          Menata Niat, <br />
+          <span className="italic">Merengkuh Kerendahan Hati</span>
+        </h1>
+
+        <div className="max-w-2xl mx-auto space-y-6 text-lg text-muted leading-relaxed text-left md:text-center">
+          <p>
+            Zikir pagi bukan sekadar rutinitas lisan, melainkan momentum krusial untuk menata niat dan mindset sebelum melangkah menghadapi dunia. Ia adalah pengingat harian bahwa sejatinya kita sangat butuh kepada Allah (Al-Faqir), dan tanpa pertolongan-Nya, kita bukanlah apa-apa.
+          </p>
+          <p>
+            Dengan berzikir, kita memohon agar dijauhkan dari benih-benih kesombongan dan sifat takabur yang seringkali menyelinap saat kita merasa mampu melakukan segalanya sendiri. Kita mengakui bahwa setiap detik napas dan keberhasilan hanyalah titipan dari-Nya.
+          </p>
+          <div className="bg-black/5 dark:bg-white/5 p-6 rounded-2xl border-l-4 border-brand-gold italic text-brand-earth/80 space-y-2">
+            <p>
+              "Maka bersabarlah kamu, karena sesungguhnya janji Allah itu benar, dan mohonlah ampunan untuk dosamu dan bertasbihlah seraya memuji Tuhanmu pada waktu petang dan pagi." (QS. Ghafir: 55)
+            </p>
+            <p className="text-sm not-italic">
+              Para Nabi terdahulu—termasuk Nabi Daud AS dan Nabi Muhammad SAW—senantiasa menjadikan zikir pagi dan petang sebagai pilar kekuatan batin mereka. Ini adalah Sunnah para rasul dalam menjaga koneksi dengan langit di tengah kesibukan memimpin bumi.
+            </p>
+          </div>
+        </div>
+
+        <motion.div
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="pt-8 text-brand-sage flex flex-col items-center gap-2"
+        >
+          <span className="text-xs uppercase tracking-widest font-semibold">Mulai Tadabbur</span>
+          <div className="w-px h-12 bg-brand-sage/30"></div>
+        </motion.div>
+      </motion.div>
+    </section>
+  );
+}
+
+
+=== File: src/components/MemorizationTechnique.tsx ===
+import { motion } from 'framer-motion';
+import { Target, Zap, Waves, Coffee } from 'lucide-react';
+
+const techniques = [
+  {
+    icon: <Zap size={20} />,
+    title: "Satu demi Satu",
+    desc: "Jangan buru-buru hafal semua. Fokus 1 zikir sampai benar-benar 'melekat' di hati dan lisan selama minimal 1-2 minggu."
+  },
+  {
+    icon: <Waves size={20} />,
+    title: "Gunakan Ritme",
+    desc: "Baca zikir dengan perlahan saat ba'da Shubuh. Biarkan setiap kata meresap di batin sebelum bergegas mencari nafkah."
+  },
+  {
+    icon: <Coffee size={20} />,
+    title: "Kaitan Lifestyle",
+    desc: "Baca saat memanaskan kendaraan atau menyiapkan kopi pagi. Jadikan ia 'pembuka pintu rezeki' yang natural."
+  }
+];
+
+export default function MemorizationTechnique() {
+  return (
+    <section className="py-16 space-y-8">
+      <div className="flex items-center gap-3 mb-8">
+        <Target className="text-brand-gold" size={24} />
+        <h3 className="font-serif text-3xl text-brand-earth">Teknik Hafal Pejuang</h3>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {techniques.map((tech, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="p-6 bg-surface border border-surface-border rounded-2xl space-y-4 hover:border-brand-gold/30 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-xl bg-brand-gold/10 text-brand-gold flex items-center justify-center">
+              {tech.icon}
+            </div>
+            <h4 className="font-bold text-main">{tech.title}</h4>
+            <p className="text-sm text-muted leading-relaxed">
+              {tech.desc}
+            </p>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+=== File: src/components/ZikirCard.tsx ===
+import { useState, Key } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Eye, EyeOff, BookOpen, Info, CheckCircle2 } from 'lucide-react';
+import { Zikir } from '../data/zikir';
+
+interface Props {
+  zikir: Zikir;
+  index: number;
+  key?: Key;
+}
+
+export default function ZikirCard({ zikir, index }: Props) {
+  const [hideLatin, setHideLatin] = useState(false);
+  const [hideMeaning, setHideMeaning] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.1 }}
+      className="bg-surface rounded-3xl border border-surface-border overflow-hidden shadow-sm hover:shadow-md transition-all duration-500"
+    >
+      {/* Header */}
+      <div className="bg-black/[0.02] dark:bg-white/[0.02] px-8 py-6 border-b border-surface-border flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-full bg-brand-gold/10 text-brand-gold flex items-center justify-center font-bold text-sm">
+            {index + 1}
+          </span>
+          <h3 className="font-serif text-xl font-medium text-brand-earth">{zikir.judul}</h3>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setHideLatin(!hideLatin)}
+            className={`p-2 rounded-lg transition-colors ${hideLatin ? 'bg-brand-sage text-white' : 'bg-black/5 dark:bg-white/5 text-muted hover:bg-black/10 dark:hover:bg-white/10'}`}
+            title="Hapus Latin (Mode Hafal)"
+          >
+            {hideLatin ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+          <button
+            onClick={() => setHideMeaning(!hideMeaning)}
+            className={`p-2 rounded-lg transition-colors ${hideMeaning ? 'bg-brand-sage text-white' : 'bg-black/5 dark:bg-white/5 text-muted hover:bg-black/10 dark:hover:bg-white/10'}`}
+            title="Hapus Arti (Mode Hafal)"
+          >
+            {hideMeaning ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+      </div>
+
+      <div className="p-8 space-y-12">
+        {/* Word by Word Grid */}
+        <div className="flex flex-wrap justify-center gap-x-8 gap-y-10" dir="rtl">
+          {zikir.kata.map((word, i) => (
+            <motion.div
+              key={i}
+              className="group flex flex-col items-center gap-3 min-w-[60px]"
+              whileHover={{ scale: 1.05 }}
+            >
+              <span className="text-3xl md:text-4xl font-serif text-main arabic-text" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                {word.arab}
+              </span>
+              <div className="flex flex-col items-center text-center gap-1" dir="ltr">
+                <AnimatePresence mode="wait">
+                  {!hideLatin && (
+                    <motion.span
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 5 }}
+                      className="text-xs uppercase tracking-widest text-brand-gold font-medium"
+                    >
+                      {word.latin}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence mode="wait">
+                  {!hideMeaning && (
+                    <motion.span
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 5 }}
+                      className="text-sm text-muted leading-tight max-w-[100px]"
+                    >
+                      {word.arti}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Full Meaning */}
+        <div className="bg-black/[0.02] dark:bg-white/[0.02] rounded-2xl p-6 border border-surface-border">
+          <div className="flex items-start gap-3">
+            <BookOpen size={20} className="text-brand-sage mt-1 shrink-0" />
+            <p className="text-main italic leading-relaxed text-lg">
+              "{zikir.arti_keseluruhan}"
+            </p>
+          </div>
+        </div>
+
+        {/* Details Toggle */}
+        <div className="pt-4">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-2 text-brand-earth font-medium hover:text-brand-sage transition-colors"
+          >
+            <Info size={18} />
+            <span>{showDetails ? 'Sembunyikan Tadabbur' : 'Lihat Tadabbur & Dalil'}</span>
+          </button>
+
+          <AnimatePresence>
+            {showDetails && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-6 p-6 bg-black/[0.02] dark:bg-white/[0.02] rounded-2xl border border-surface-border space-y-6">
+                  <div className="space-y-4 pt-4 border-t border-muted/10">
+                    <div className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-brand-sage">
+                        <CheckCircle2 size={16} />
+                        Motivasi Jiwa
+                      </h4>
+                      <p className="text-main leading-relaxed italic font-medium">
+                        "{zikir.motivasi_emosional}"
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted/60">
+                      <CheckCircle2 size={16} />
+                      Tadabbur
+                    </h4>
+                    <p className="text-muted leading-relaxed">
+                      {zikir.tadabbur}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted/60">
+                      <CheckCircle2 size={16} />
+                      Dalil
+                    </h4>
+                    <p className="text-sm text-muted font-serif italic">
+                      {zikir.dalil}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+
+=== File: src/data/zikir.ts ===
+export interface ZikirWord {
+  arab: string;
+  latin: string;
+  arti: string;
+}
+
+export interface Zikir {
+  judul: string;
+  kata: ZikirWord[];
+  arti_keseluruhan: string;
+  dalil: string;
+  tadabbur: string;
+  motivasi_emosional: string; // Added emotional motivation
+}
+
+export const zikirData: Zikir[] = [
+  {
+    "judul": "Ya Hayyu Ya Qayyum",
+    "kata": [
+      {"arab": "يَا", "latin": "yaa", "arti": "wahai"},
+      {"arab": "حَيُّ", "latin": "hayyu", "arti": "Yang Maha Hidup"},
+      {"arab": "يَا", "latin": "yaa", "arti": "wahai"},
+      {"arab": "قَيُّومُ", "latin": "qayyum", "arti": "Yang Maha Berdiri Sendiri"},
+      {"arab": "بِرَحْمَتِكَ", "latin": "bi rahmatika", "arti": "dengan rahmat-Mu"},
+      {"arab": "أَسْتَغِيثُ", "latin": "astaghits", "arti": "aku memohon pertolongan"},
+      {"arab": "أَصْلِحْ", "latin": "aslih", "arti": "perbaikilah"},
+      {"arab": "لِي", "latin": "lii", "arti": "bagiku"},
+      {"arab": "شَأْنِي", "latin": "sya'ni", "arti": "urusanku"},
+      {"arab": "كُلَّهُ", "latin": "kullahu", "arti": "seluruhnya"},
+      {"arab": "وَلَا", "latin": "walaa", "arti": "dan jangan"},
+      {"arab": "تَكِلْنِي", "latin": "takilni", "arti": "Engkau serahkan aku"},
+      {"arab": "إِلَى", "latin": "ila", "arti": "kepada"},
+      {"arab": "نَفْسِي", "latin": "nafsi", "arti": "diriku sendiri"},
+      {"arab": "طَرْفَةَ", "latin": "torfata", "arti": "sekejap"},
+      {"arab": "عَيْنٍ", "latin": "'ain", "arti": "mata"}
+    ],
+    "arti_keseluruhan": "Wahai Yang Maha Hidup, Wahai Yang Maha Berdiri Sendiri, dengan rahmat-Mu aku memohon pertolongan. Perbaikilah seluruh urusanku dan jangan Engkau serahkan aku kepada diriku sendiri walau sekejap mata.",
+    "dalil": "HR. An-Nasa'i dan Al-Hakim (dishahihkan Al-Albani)",
+    "tadabbur": "Ini doa tauhid dan ketergantungan total. Bahkan satu kedipan mata tanpa pertolongan Allah bisa menjerumuskan manusia.",
+    "motivasi_emosional": "Bayangkan lelahmu mengejar rezeki hari ini. Tanpa Allah yang memegang kendali, lelahmu hanya akan jadi letih tanpa makna. Bisikkan ini untuk mengundang belas kasih Sang Pemilik Segala Urusan."
+  },
+  {
+    "judul": "Allahumma Ilman Nafian",
+    "kata": [
+      {"arab": "اللَّهُمَّ", "latin": "allahumma", "arti": "ya Allah"},
+      {"arab": "إِنِّي", "latin": "inni", "arti": "sesungguhnya aku"},
+      {"arab": "أَسْأَلُكَ", "latin": "as'aluka", "arti": "memohon kepada-Mu"},
+      {"arab": "عِلْمًا", "latin": "ilman", "arti": "ilmu"},
+      {"arab": "نَافِعًا", "latin": "nafi'an", "arti": "yang bermanfaat"},
+      {"arab": "وَرِزْقًا", "latin": "wa rizqan", "arti": "dan rezeki"},
+      {"arab": "طَيِّبًا", "latin": "tayyiban", "arti": "yang baik"},
+      {"arab": "وَعَمَلًا", "latin": "wa 'amalan", "arti": "dan amal"},
+      {"arab": "مُتَقَبَّلًا", "latin": "mutaqabbalan", "arti": "yang diterima"}
+    ],
+    "arti_keseluruhan": "Ya Allah, aku memohon kepada-Mu ilmu yang bermanfaat, rezeki yang baik, dan amal yang diterima.",
+    "dalil": "HR. Ibnu Majah no. 925 (shahih)",
+    "tadabbur": "Fokus hidup diringkas jadi tiga: ilmu → rezeki → amal. Tanpa keberkahan, semuanya bisa sia-sia.",
+    "motivasi_emosional": "Untukmu pejuang rupiah, mintalah rezeki yang 'Tayyiban' (baik & berkah), bukan cuma banyak. Karena rezeki berkah menenangkan hati, rezeki panas hanya akan menambah beban pikiran."
+  },
+  {
+    "judul": "Allahumma Afini Fi Badani",
+    "kata": [
+      {"arab": "اللَّهُمَّ", "latin": "allahumma", "arti": "ya Allah"},
+      {"arab": "عَافِنِي", "latin": "'afini", "arti": "sehatkanlah aku"},
+      {"arab": "فِي", "latin": "fi", "arti": "pada"},
+      {"arab": "بَدَنِي", "latin": "badani", "arti": "tubuhku"},
+      {"arab": "اللَّهُمَّ", "latin": "allahumma", "arti": "ya Allah"},
+      {"arab": "عَافِنِي", "latin": "'afini", "arti": "sehatkanlah aku"},
+      {"arab": "فِي", "latin": "fi", "arti": "pada"},
+      {"arab": "سَمْعِي", "latin": "sam'i", "arti": "pendengaranku"},
+      {"arab": "اللَّهُمَّ", "latin": "allahumma", "arti": "ya Allah"},
+      {"arab": "عَافِنِي", "latin": "'afini", "arti": "sehatkanlah aku"},
+      {"arab": "فِي", "latin": "fi", "arti": "pada"},
+      {"arab": "بَصَرِي", "latin": "basari", "arti": "penglihatanku"},
+      {"arab": "لَا", "latin": "laa", "arti": "tidak ada"},
+      {"arab": "إِلَهَ", "latin": "ilaha", "arti": "tuhan"},
+      {"arab": "إِلَّا", "latin": "illa", "arti": "selain"},
+      {"arab": "أَنْتَ", "latin": "anta", "arti": "Engkau"}
+    ],
+    "arti_keseluruhan": "Ya Allah, sehatkanlah badanku, pendengaranku, dan penglihatanku. Tidak ada Tuhan selain Engkau.",
+    "dalil": "HR. Abu Dawud no. 5090 (hasan)",
+    "tadabbur": "Kesehatan bukan hanya fisik, tapi alat ibadah. Pendengaran & penglihatan akan dimintai pertanggungjawaban.",
+    "motivasi_emosional": "Tubuhmu adalah kendaraan ibadahmu. Di tengah kerasnya dunia mencari ilmu dan nafkah, jangan biarkan kendaraan ini rusak. Syukuri mata dan telingamu dengan doa ini sebelum mereka lelah oleh gadget dan bisingnya dunia."
+  }
+];
+
