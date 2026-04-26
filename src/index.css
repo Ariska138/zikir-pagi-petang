@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+
+  --color-brand-cream: var(--bg-primary);
+  --color-brand-earth: var(--text-brand);
+  --color-brand-sage: var(--accent-secondary);
+  --color-brand-gold: var(--accent-primary);
+  --color-surface: var(--card-bg);
+  --color-surface-border: var(--card-border);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-nav-bg: var(--nav-bg);
+}
+
+:root {
+  --bg-primary: #fdfaf6;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-brand: #5a5a40;
+  --accent-primary: #c5a059;
+  --accent-secondary: #8a9a5b;
+  --card-bg: #ffffff;
+  --card-border: rgba(90, 90, 64, 0.1);
+  --nav-bg: rgba(253, 250, 246, 0.8);
+}
+
+.dark {
+  --bg-primary: #0A0B0E;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-brand: #f59e0b; /* Amber 500 */
+  --accent-primary: #fbbf24; /* Amber 400 */
+  --accent-secondary: #d97706; /* Amber 600 */
+  --card-bg: #111318;
+  --card-border: rgba(30, 41, 59, 0.5);
+  --nav-bg: rgba(10, 11, 14, 0.8);
+}
+
+@layer base {
+  body {
+    @apply bg-brand-cream text-main font-sans antialiased transition-colors duration-500;
+  }
+
+  .arabic-text {
+    @apply font-serif;
+    direction: rtl;
+  }
+}
+
